@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using NBitcoin;
 using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.IntegrationTests.Common.EnvironmentMockUpHelpers;
@@ -29,12 +30,18 @@ namespace Stratis.Bitcoin.Features.PoA.IntegrationTests.Common
             return this.CreateNode(new PoANodeRunner(this.GetNextDataFolderName(), network, this.TimeProvider), "poa.conf");
         }
 
-        public CoreNode CreatePoANode(PoANetwork network, Key key)
+        public CoreNode CreatePoANode(PoANetwork network, Key key, string[] args = null)
         {
             string dataFolder = this.GetNextDataFolderName();
             CoreNode node = this.CreateNode(new PoANodeRunner(dataFolder, network, this.TimeProvider), "poa.conf");
 
-            var settings = new NodeSettings(network, args: new string[] { "-conf=poa.conf", "-datadir=" + dataFolder });
+            var arguments = new List<string>();
+            if (args != null)
+                arguments.AddRange(args);
+
+            arguments.AddRange(new string[] { "-conf=poa.conf", "-datadir=" + dataFolder });
+
+            var settings = new NodeSettings(network, args: arguments.ToArray());
             var tool = new KeyTool(settings.DataFolder);
             tool.SavePrivateKey(key);
 
