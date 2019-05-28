@@ -1,8 +1,10 @@
 using System.Linq;
+using System.Threading.Tasks;
 using NBitcoin;
 using Stratis.Bitcoin.Features.PoA;
 using Stratis.Bitcoin.Features.PoA.IntegrationTests.Common;
 using Stratis.Bitcoin.Features.Wallet.Interfaces;
+using Stratis.Bitcoin.IntegrationTests.Common;
 using Stratis.Bitcoin.IntegrationTests.Common.EnvironmentMockUpHelpers;
 using Stratis.Bitcoin.Tests.Common;
 using Stratis.Features.FederatedPeg.IntegrationTests.Utils;
@@ -13,7 +15,7 @@ namespace Stratis.Features.FederatedPeg.IntegrationTests
 {
     public class MiningTests
     {
-        [Fact(Skip = FederatedPegTestHelper.SkipTests)]
+        [Fact]
         public void NodeCanLoadFederationKey()
         {
             var network = (CirrusRegTest)CirrusNetwork.NetworksSelector.Regtest();
@@ -26,19 +28,17 @@ namespace Stratis.Features.FederatedPeg.IntegrationTests
 
                 Assert.True(node.FullNode.NodeService<IFederationManager>().IsFederationMember);
                 Assert.Equal(node.FullNode.NodeService<IFederationManager>().CurrentFederationKey, key);
-                // Assert.True(node.FullNode.NodeService<IPoAMiner>().IsMining()); Old method
 
                 // Create second node as normal node.
                 CoreNode node2 = builder.CreatePoANode(network).Start();
 
                 Assert.False(node2.FullNode.NodeService<IFederationManager>().IsFederationMember);
                 Assert.Equal(node2.FullNode.NodeService<IFederationManager>().CurrentFederationKey, null);
-                // Assert.False(node2.FullNode.NodeService<IPoAMiner>().IsMining()); Old method
             }
         }
 
-        [Fact(Skip = FederatedPegTestHelper.SkipTests)]
-        public void NodeCanMine()
+        [Fact]
+        public async Task NodeCanMineAsync()
         {
             var network = (CirrusRegTest)CirrusNetwork.NetworksSelector.Regtest();
 
@@ -46,21 +46,23 @@ namespace Stratis.Features.FederatedPeg.IntegrationTests
             {
                 CoreNode node0 = builder.CreatePoANode(network, network.FederationKeys[0]).Start();
                 CoreNode node1 = builder.CreatePoANode(network, network.FederationKeys[1]).Start();
-                // node0.EnableFastMining(); Old method
-                // node1.EnableFastMining(); Old method
 
-                int tipBefore = node0.GetTip().Height;
-                TestBase.WaitLoop(
-                    () =>
-                        {
-                            return node0.GetTip().Height >= tipBefore + 5;
-                        }
-                    );
+                TestHelper.Connect(node0, node1);
+
+                await node0.MineBlocksAsync(3);
+
+                TestHelper.WaitForNodeToSync(node0, node1);
+
+                await node0.MineBlocksAsync(2);
+
+                TestHelper.WaitForNodeToSync(node0, node1);
+
+                Assert.Equal(node0.GetTip().HashBlock, node1.GetTip().HashBlock);
             }
         }
 
-        [Fact(Skip = FederatedPegTestHelper.SkipTests)]
-        public void PremineIsReceived()
+        [Fact]
+        public async Task PremineIsReceivedAsync()
         {
             var network = (CirrusRegTest)CirrusNetwork.NetworksSelector.Regtest();
 
@@ -68,13 +70,13 @@ namespace Stratis.Features.FederatedPeg.IntegrationTests
             {
                 string walletName = "mywallet";
                 CoreNode node = builder.CreatePoANode(network, network.FederationKeys[0]).WithWallet("pass", walletName).Start();
-                // node.EnableFastMining(); Old method
 
-                var walletManager = node.FullNode.NodeService<IWalletManager>();
+                IWalletManager walletManager = node.FullNode.NodeService<IWalletManager>();
                 long balanceOnStart = walletManager.GetBalances(walletName, "account 0").Sum(x => x.AmountConfirmed);
                 Assert.Equal(0, balanceOnStart);
 
-                TestBase.WaitLoop(() => node.GetTip().Height >= network.Consensus.PremineHeight + network.Consensus.CoinbaseMaturity + 1);
+                int mineCount = (int)(network.Consensus.PremineHeight + network.Consensus.CoinbaseMaturity + 1);
+                await node.MineBlocksAsync(mineCount);
 
                 long balanceAfterPremine = walletManager.GetBalances(walletName, "account 0").Sum(x => x.AmountConfirmed);
 
