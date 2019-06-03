@@ -450,15 +450,21 @@ namespace Stratis.Bitcoin.Consensus
                         return;
                     }
 
-                    List<int> peerIdsToBan = this.chainedHeaderTree.PartialOrFullValidationFailed(validationContext.ChainedHeaderToValidate);
-
-                    this.logger.LogDebug("Validation of block '{0}' failed, banning and disconnecting {1} peers.", validationContext.ChainedHeaderToValidate, peerIdsToBan.Count);
-
-                    foreach (int peerId in peerIdsToBan)
+                    // Ban the peers only in case block is invalid and not temporary rejected.
+                    if (validationContext.RejectUntil == null)
                     {
-                        if (this.peersByPeerId.TryGetValue(peerId, out INetworkPeer peer))
-                            peersToBan.Add(peer);
+                        List<int> peerIdsToBan = this.chainedHeaderTree.PartialOrFullValidationFailed(validationContext.ChainedHeaderToValidate);
+
+                        this.logger.LogDebug("Validation of block '{0}' failed, banning and disconnecting {1} peers.", validationContext.ChainedHeaderToValidate, peerIdsToBan.Count);
+
+                        foreach (int peerId in peerIdsToBan)
+                        {
+                            if (this.peersByPeerId.TryGetValue(peerId, out INetworkPeer peer))
+                                peersToBan.Add(peer);
+                        }
                     }
+                    else
+                        this.logger.LogDebug("Validation of block '{0}' failed.", validationContext.ChainedHeaderToValidate);
                 }
 
                 foreach (INetworkPeer peer in peersToBan)
