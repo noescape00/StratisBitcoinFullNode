@@ -82,6 +82,8 @@ namespace Stratis.Features.FederatedPeg
 
         private readonly IWithdrawalHistoryProvider withdrawalHistoryProvider;
 
+        private readonly ICollateralChecker collateralChecker;
+
         private readonly ILogger logger;
 
         public FederatedPegFeature(
@@ -114,6 +116,7 @@ namespace Stratis.Features.FederatedPeg
             this.maturedBlocksSyncManager = maturedBlocksSyncManager;
             this.withdrawalHistoryProvider = withdrawalHistoryProvider;
             this.signedBroadcaster = signedBroadcaster;
+            this.collateralChecker = collateralChecker;
 
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
 
@@ -127,6 +130,9 @@ namespace Stratis.Features.FederatedPeg
 
         public override async Task InitializeAsync()
         {
+            if (this.collateralChecker != null)
+                await this.collateralChecker.InitializeAsync();
+
             // Set up our database of deposit and withdrawal transactions. Needs to happen before everything else.
             this.crossChainTransferStore.Initialize();
 
@@ -343,6 +349,7 @@ namespace Stratis.Features.FederatedPeg
                     {
                         services.AddSingleton<PoABlockHeaderValidator>();
                         services.AddSingleton<IPoAMiner, CollateralPoAMiner>();
+                        services.AddSingleton<ICollateralChecker, CollateralChecker>();
                         services.AddSingleton<ISlotsManager, SlotsManager>();
                         services.AddSingleton<BlockDefinition, FederatedPegBlockDefinition>();
                         services.AddSingleton<ICoinbaseSplitter, PremineCoinbaseSplitter>();
