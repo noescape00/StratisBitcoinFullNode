@@ -123,7 +123,7 @@ namespace Stratis.Bitcoin.P2P
                     return;
                 }
 
-                this.AddDNSSeedNodes(peersToDiscover);
+                await this.AddDNSSeedNodesAsync(peersToDiscover).ConfigureAwait(false);
                 this.AddSeedNodes(peersToDiscover);
                 this.isSeedAndDnsAttempted = true;
 
@@ -141,7 +141,7 @@ namespace Stratis.Bitcoin.P2P
                 if (!this.isSeedAndDnsAttempted && foundPeers.All(peer => peer.Attempted))
                 {
                     peersToDiscover.Clear();
-                    this.AddDNSSeedNodes(peersToDiscover);
+                    await this.AddDNSSeedNodesAsync(peersToDiscover).ConfigureAwait(false);
                     this.AddSeedNodes(peersToDiscover);
                     this.isSeedAndDnsAttempted = true;
                 }
@@ -190,13 +190,13 @@ namespace Stratis.Bitcoin.P2P
         /// <summary>
         /// Add peers to the address manager from the network DNS's seed nodes.
         /// </summary>
-        private void AddDNSSeedNodes(List<IPEndPoint> endPoints)
+        private async Task AddDNSSeedNodesAsync(List<IPEndPoint> endPoints)
         {
             foreach (DNSSeedData seed in this.network.DNSSeeds)
             {
                 try
                 {
-                    IPAddress[] ipAddresses = seed.GetAddressNodes();
+                    IPAddress[] ipAddresses = await seed.GetAddressNodesAsync().ConfigureAwait(false);
                     endPoints.AddRange(ipAddresses.Select(ip => new IPEndPoint(ip, this.network.DefaultPort)));
                 }
                 catch (Exception)

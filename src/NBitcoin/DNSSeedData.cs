@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Threading.Tasks;
 
 namespace NBitcoin
 {
@@ -33,14 +34,14 @@ namespace NBitcoin
         /// Gets the IP addresses of nodes associated with the host.
         /// </summary>
         /// <returns>A list of IP addresses.</returns>
-        public IPAddress[] GetAddressNodes()
+        public async Task<IPAddress[]> GetAddressNodesAsync()
         {
             if (this.addresses != null)
             {
                 return this.addresses;
             }
 
-            this.addresses = Dns.GetHostAddressesAsync(this.Host).GetAwaiter().GetResult();
+            this.addresses = await Dns.GetHostAddressesAsync(this.Host).ConfigureAwait(false);
 
             return this.addresses;
         }
