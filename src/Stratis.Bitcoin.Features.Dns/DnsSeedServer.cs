@@ -353,6 +353,8 @@ namespace Stratis.Bitcoin.Features.Dns
             // Set new start index.
             Interlocked.Increment(ref this.startIndex);
 
+            response.AuthorityRecords.Add(new NameServerResourceRecord(new Domain(this.dnsSettings.DnsHostName), new Domain(this.dnsSettings.DnsNameServer)));
+
             return response;
         }
 
