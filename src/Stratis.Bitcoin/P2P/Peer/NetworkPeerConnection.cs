@@ -74,7 +74,7 @@ namespace Stratis.Bitcoin.P2P.Peer
         private readonly IAsyncProvider asyncProvider;
 
         /// <summary>Instance logger.</summary>
-        private ILogger logger;
+        protected ILogger logger;
 
         /// <summary>Specification of the network the node runs on - regtest/testnet/mainnet.</summary>
         private readonly Network network;
@@ -92,14 +92,14 @@ namespace Stratis.Bitcoin.P2P.Peer
         public int Id { get; private set; }
 
         /// <summary>Underlaying TCP client.</summary>
-        private TcpClient tcpClient;
+        protected TcpClient tcpClient;
 
         /// <summary>Prevents parallel execution of multiple write operations on <see cref="stream"/>.</summary>
         private readonly AsyncLock writeLock;
 
         /// <summary>Stream to send and receive messages through established TCP connection.</summary>
         /// <remarks>Write operations on the stream have to be protected by <see cref="writeLock"/>.</remarks>
-        private NetworkStream stream;
+        protected Stream stream;
 
         /// <inheritdoc />
         public IPEndPoint RemoteEndPoint
@@ -150,7 +150,7 @@ namespace Stratis.Bitcoin.P2P.Peer
             this.tcpClient = client;
             this.Id = clientId;
 
-            this.stream = this.tcpClient.Connected ? this.tcpClient.GetStream() : null;
+            this.SetStream();
 
             this.writeLock = new AsyncLock();
 
@@ -159,6 +159,11 @@ namespace Stratis.Bitcoin.P2P.Peer
             this.MessageProducer = new MessageProducer<IncomingMessage>();
             this.messageListener = new CallbackMessageListener<IncomingMessage>(asyncProvider, processMessageAsync, peer);
             this.messageProducerRegistration = this.MessageProducer.AddMessageListener(this.messageListener);
+        }
+
+        protected virtual void SetStream()
+        {
+            this.stream = this.tcpClient.Connected ? this.tcpClient.GetStream() : null;
         }
 
         /// <inheritdoc />
@@ -215,7 +220,7 @@ namespace Stratis.Bitcoin.P2P.Peer
                 await this.tcpClient.ConnectAsync(endPoint.Address, endPoint.Port).WithCancellationAsync(cancellation).ConfigureAwait(false);
                 this.asyncProvider.Signals.Publish(new PeerConnected(false, endPoint));
 
-                this.stream = this.tcpClient.GetStream();
+                this.SetStream();
             }
             catch (OperationCanceledException)
             {
@@ -325,7 +330,7 @@ namespace Stratis.Bitcoin.P2P.Peer
         {
             using (await this.writeLock.LockAsync(cancellation).ConfigureAwait(false))
             {
-                NetworkStream innerStream = this.stream;
+                Stream innerStream = this.stream;
 
                 if (innerStream == null)
                 {
@@ -446,7 +451,7 @@ namespace Stratis.Bitcoin.P2P.Peer
         /// <exception cref="OperationCanceledException">Thrown if the operation was cancelled or the end of the stream was reached.</exception>
         private async Task ReadBytesAsync(byte[] buffer, int offset, int bytesToRead, CancellationToken cancellation = default(CancellationToken))
         {
-            NetworkStream innerStream = this.stream;
+            Stream innerStream = this.stream;
 
             if (innerStream == null)
             {
@@ -522,7 +527,7 @@ namespace Stratis.Bitcoin.P2P.Peer
         /// <inheritdoc />
         public void Disconnect()
         {
-            NetworkStream disposeStream = this.stream;
+            Stream disposeStream = this.stream;
             TcpClient disposeTcpClient = this.tcpClient;
 
             this.stream = null;
