@@ -65,7 +65,8 @@ namespace Stratis.Bitcoin.P2P.Peer
         /// <param name="peer">Network peer the node is connected to, or will connect to.</param>
         /// <param name="client">Initialized and possibly connected TCP client to the peer.</param>
         /// <param name="processMessageAsync">Callback to be called when a new message arrives from the peer.</param>
-        INetworkPeerConnection CreateNetworkPeerConnection(INetworkPeer peer, TcpClient client, ProcessMessageAsync<IncomingMessage> processMessageAsync);
+        /// <param name="isServer"><c>true</c> if we are receiving an inbound connection.</param>
+        INetworkPeerConnection CreateNetworkPeerConnection(INetworkPeer peer, TcpClient client, ProcessMessageAsync<IncomingMessage> processMessageAsync, bool isServer);
 
         /// <summary>
         /// Registers a callback that will be passed to all created peers. It gets called prior to sending messages to the peer.
@@ -80,10 +81,10 @@ namespace Stratis.Bitcoin.P2P.Peer
     public class NetworkPeerFactory : INetworkPeerFactory
     {
         /// <summary>Factory for creating loggers.</summary>
-        private readonly ILoggerFactory loggerFactory;
+        protected readonly ILoggerFactory loggerFactory;
 
         /// <summary>A provider of network payload messages.</summary>
-        private readonly PayloadProvider payloadProvider;
+        protected readonly PayloadProvider payloadProvider;
 
         private readonly ISelfEndpointTracker selfEndpointTracker;
 
@@ -91,21 +92,22 @@ namespace Stratis.Bitcoin.P2P.Peer
         private readonly ILogger logger;
 
         /// <summary>Provider of time functions.</summary>
-        private readonly IDateTimeProvider dateTimeProvider;
+        protected readonly IDateTimeProvider dateTimeProvider;
 
         /// <summary>Specification of the network the node runs on - regtest/testnet/mainnet.</summary>
-        private readonly Network network;
+        protected readonly Network network;
 
         /// <summary>Identifier of the last network peer client this factory produced.</summary>
         /// <remarks>When a new client is created, the ID is incremented so that each client has its own unique ID.</remarks>
-        private int lastClientId;
+        protected int lastClientId;
 
         /// <summary>Provider of IBD state.</summary>
         private readonly IInitialBlockDownloadState initialBlockDownloadState;
 
         /// <summary>Configuration related to incoming and outgoing connections.</summary>
         private readonly ConnectionManagerSettings connectionManagerSettings;
-        private readonly IAsyncProvider asyncProvider;
+
+        protected readonly IAsyncProvider asyncProvider;
 
         /// <summary>Callback that is invoked just before a message is to be sent to a peer, or <c>null</c> when nothing needs to be called.</summary>
         private Action<IPEndPoint, Payload> onSendingMessage;
@@ -223,7 +225,7 @@ namespace Stratis.Bitcoin.P2P.Peer
         }
 
         /// <inheritdoc/>
-        public INetworkPeerConnection CreateNetworkPeerConnection(INetworkPeer peer, TcpClient client, ProcessMessageAsync<IncomingMessage> processMessageAsync)
+        public virtual INetworkPeerConnection CreateNetworkPeerConnection(INetworkPeer peer, TcpClient client, ProcessMessageAsync<IncomingMessage> processMessageAsync, bool isServer)
         {
             Guard.NotNull(peer, nameof(peer));
             Guard.NotNull(client, nameof(client));
