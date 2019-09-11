@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using NBitcoin.Rules;
@@ -220,7 +221,7 @@ namespace Stratis.Bitcoin.Features.PoA
     public static class FullNodeBuilderConsensusExtension
     {
         /// <summary>This is mandatory for all PoA networks.</summary>
-        public static IFullNodeBuilder UsePoAConsensus(this IFullNodeBuilder fullNodeBuilder)
+        public static IFullNodeBuilder UsePoAConsensus(this IFullNodeBuilder fullNodeBuilder, Network network)
         {
             fullNodeBuilder.ConfigureFeature(features =>
             {
@@ -264,6 +265,15 @@ namespace Stratis.Bitcoin.Features.PoA
 
                         // Permissioned membership.
                         services.AddSingleton<CertificatesManager>();
+
+                        var options = (PoAConsensusOptions)network.Consensus.Options;
+
+                        if (options.EnablePermissionedMembership)
+                        {
+                            ServiceDescriptor descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(INetworkPeerFactory));
+                            services.Remove(descriptor);
+                            services.AddSingleton<INetworkPeerFactory, TlsEnabledNetworkPeerFactory>();
+                        }
                     });
             });
 

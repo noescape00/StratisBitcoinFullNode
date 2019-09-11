@@ -29,7 +29,7 @@ namespace Stratis.Bitcoin.Features.PoA.IntegrationTests.Common
             this.FullNode = (FullNode)new FullNodeBuilder()
                 .UseNodeSettings(settings)
                 .UseBlockStore()
-                .UsePoAConsensus()
+                .UsePoAConsensus(this.Network)
                 .UseMempool()
                 .UseWallet()
                 .UseApi()
