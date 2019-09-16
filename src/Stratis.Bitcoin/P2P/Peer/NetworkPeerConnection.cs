@@ -150,8 +150,6 @@ namespace Stratis.Bitcoin.P2P.Peer
             this.tcpClient = client;
             this.Id = clientId;
 
-            this.SetStream();
-
             this.writeLock = new AsyncLock();
 
             this.CancellationSource = new CancellationTokenSource();
@@ -161,9 +159,14 @@ namespace Stratis.Bitcoin.P2P.Peer
             this.messageProducerRegistration = this.MessageProducer.AddMessageListener(this.messageListener);
         }
 
-        protected virtual void SetStream()
+        protected virtual Stream GetStream()
         {
+            if (this.stream != null)
+                return this.stream;
+
             this.stream = this.tcpClient.Connected ? this.tcpClient.GetStream() : null;
+
+            return this.stream;
         }
 
         /// <inheritdoc />
@@ -219,8 +222,6 @@ namespace Stratis.Bitcoin.P2P.Peer
                 this.asyncProvider.Signals.Publish(new PeerConnectionAttempt(false, endPoint));
                 await this.tcpClient.ConnectAsync(endPoint.Address, endPoint.Port).WithCancellationAsync(cancellation).ConfigureAwait(false);
                 this.asyncProvider.Signals.Publish(new PeerConnected(false, endPoint));
-
-                this.SetStream();
             }
             catch (OperationCanceledException)
             {
@@ -330,7 +331,7 @@ namespace Stratis.Bitcoin.P2P.Peer
         {
             using (await this.writeLock.LockAsync(cancellation).ConfigureAwait(false))
             {
-                Stream innerStream = this.stream;
+                Stream innerStream = this.GetStream();
 
                 if (innerStream == null)
                 {
@@ -451,7 +452,7 @@ namespace Stratis.Bitcoin.P2P.Peer
         /// <exception cref="OperationCanceledException">Thrown if the operation was cancelled or the end of the stream was reached.</exception>
         private async Task ReadBytesAsync(byte[] buffer, int offset, int bytesToRead, CancellationToken cancellation = default(CancellationToken))
         {
-            Stream innerStream = this.stream;
+            Stream innerStream = this.GetStream();
 
             if (innerStream == null)
             {

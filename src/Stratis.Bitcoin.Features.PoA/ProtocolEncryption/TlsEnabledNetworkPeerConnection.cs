@@ -1,4 +1,5 @@
-﻿using System.Net.Security;
+﻿using System.IO;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
@@ -26,19 +27,19 @@ namespace Stratis.Bitcoin.Features.PoA.ProtocolEncryption
             this.isServer = isServer;
         }
 
-        protected override void SetStream()
+        protected override Stream GetStream()
         {
-            var sslStream = new SslStream(this.tcpClient.GetStream(), false, new RemoteCertificateValidationCallback(this.certManager.ValidateCertificate), null);
+            if (this.stream != null)
+                return this.stream;
+
+            NetworkStream tcpClientStream = this.tcpClient.GetStream();
+            var sslStream = new SslStream(tcpClientStream, false, this.certManager.ValidateCertificate, null);
 
             try
             {
                 if (this.isServer)
                 {
-                    sslStream.AuthenticateAsServer(this.certManager.ClientCertificate, true, SslProtocols.Default, true);
-
-                    // Set timeouts for the read and write to 5 seconds.
-                    sslStream.ReadTimeout = 5000;
-                    sslStream.WriteTimeout = 5000;
+                    sslStream.AuthenticateAsServer(this.certManager.ClientCertificate, true, SslProtocols.Tls12, true);
                 }
                 else
                 {
@@ -55,14 +56,12 @@ namespace Stratis.Bitcoin.Features.PoA.ProtocolEncryption
                     this.logger.LogDebug("Inner exception: {0}", e.InnerException.Message);
 
                 this.logger.LogTrace("(-)[AUTH_FAILED]");
-                return;
-            }
-            finally
-            {
-                sslStream.Close();
+                return this.stream;
             }
 
             this.stream = sslStream;
+
+            return this.stream;
         }
     }
 }
