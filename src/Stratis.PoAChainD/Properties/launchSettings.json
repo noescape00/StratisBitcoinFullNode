@@ -2,7 +2,7 @@
   "profiles": {
     "Stratis.PoAChainD": {
       "commandName": "Project",
-      "commandLineArgs": "-certificatepassword=\"qweqwe\""
+      "commandLineArgs": "-connect=0 -bootstrap=1 -apiuri=http://localhost:37666 -certificatepassword=qweqwe -addressindex=1 -port=16400 -datadir=C:\\Users\\user\\Desktop\\PoASetup\\dir2 -listen=1"
     }
   }
 }
