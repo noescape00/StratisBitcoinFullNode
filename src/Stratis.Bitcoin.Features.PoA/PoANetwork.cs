@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using NBitcoin;
 using NBitcoin.DataEncoders;
+using Stratis.Bitcoin.Features.Consensus.Rules.CommonRules;
 using Stratis.Bitcoin.Features.MemoryPool.Rules;
+using Stratis.Bitcoin.Features.PoA.BasePoAFeatureConsensusRules;
 using Stratis.Bitcoin.Features.PoA.Policies;
+using Stratis.Bitcoin.Features.PoA.Voting.ConsensusRules;
 
 namespace Stratis.Bitcoin.Features.PoA
 {
@@ -88,8 +91,7 @@ namespace Stratis.Bitcoin.Features.PoA
                 genesisFederationMembers: genesisFederationMembers,
                 targetSpacingSeconds: 16,
                 votingEnabled: true,
-                autoKickIdleMembers: true,
-                enablePermissionedMembership: true
+                autoKickIdleMembers: true
             );
 
             var buriedDeployments = new BuriedDeploymentsArray
@@ -178,10 +180,57 @@ namespace Stratis.Bitcoin.Features.PoA
                 throw new Exception("No keys for initial federation are configured!");
             }
 
+            this.RegisterRules(this.Consensus);
             this.RegisterMempoolRules(this.Consensus);
         }
 
-        private void RegisterMempoolRules(IConsensus consensus)
+        protected virtual void RegisterRules(IConsensus consensus)
+        {
+            // IHeaderValidationConsensusRule
+            consensus.ConsensusRules
+                .Register<HeaderTimeChecksPoARule>()
+                .Register<StratisHeaderVersionRule>()
+                .Register<PoAHeaderDifficultyRule>()
+                .Register<PoAHeaderSignatureRule>();
+            // ------------------------------------------------------
+
+            // IIntegrityValidationConsensusRule
+            consensus.ConsensusRules
+                .Register<BlockMerkleRootRule>()
+                .Register<PoAIntegritySignatureRule>();
+            // ------------------------------------------------------
+
+            // IPartialValidationConsensusRule
+            consensus.ConsensusRules
+                .Register<SetActivationDeploymentsPartialValidationRule>()
+
+                // Rules that are inside the method ContextualCheckBlock
+                .Register<TransactionLocktimeActivationRule>()
+                .Register<CoinbaseHeightActivationRule>()
+                .Register<BlockSizeRule>()
+
+                // Rules that are inside the method CheckBlock
+                .Register<EnsureCoinbaseRule>()
+                .Register<CheckPowTransactionRule>()
+                .Register<CheckSigOpsRule>()
+
+                .Register<PoAVotingCoinbaseOutputFormatRule>();
+            // ------------------------------------------------------
+
+            // IFullValidationConsensusRule
+            consensus.ConsensusRules
+                .Register<SetActivationDeploymentsFullValidationRule>()
+
+                // Rules that require the store to be loaded (coinview)
+                .Register<LoadCoinviewRule>()
+                .Register<TransactionDuplicationActivationRule>() // implements BIP30
+
+                .Register<PoACoinviewRule>()
+                .Register<SaveCoinviewRule>();
+            // ------------------------------------------------------
+        }
+
+        protected virtual void RegisterMempoolRules(IConsensus consensus)
         {
             // TODO: These are currently the PoW/PoS rules as PoA does not have smart contracts by itself. Are other specialised rules needed?
             consensus.MempoolRules = new List<Type>()
