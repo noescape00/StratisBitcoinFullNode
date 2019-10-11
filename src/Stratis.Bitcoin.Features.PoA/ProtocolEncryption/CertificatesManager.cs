@@ -119,7 +119,8 @@ namespace Stratis.Bitcoin.Features.PoA.ProtocolEncryption
 
         public bool ValidateCertificate(object sender, X509Certificate certificate, X509Chain _, SslPolicyErrors sslPolicyErrors)
         {
-            // TODO certificate can be null
+            if (certificate == null)
+                return false;
 
             var certificateToValidate = new X509Certificate2(certificate);
 
