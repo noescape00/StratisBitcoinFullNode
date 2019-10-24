@@ -61,10 +61,13 @@ namespace Stratis.Bitcoin.Features.PoA
 
         private readonly CertificatesManager certificatesManager;
 
+        private readonly RevocationChecker revocationChecker;
+
         public PoAFeature(IFederationManager federationManager, PayloadProvider payloadProvider, IConnectionManager connectionManager, ChainIndexer chainIndexer,
             IInitialBlockDownloadState initialBlockDownloadState, IConsensusManager consensusManager, IPeerBanning peerBanning, ILoggerFactory loggerFactory,
             IPoAMiner miner, VotingManager votingManager, Network network, IWhitelistedHashesRepository whitelistedHashesRepository,
-            IdleFederationMembersKicker idleFederationMembersKicker, IChainState chainState, IBlockStoreQueue blockStoreQueue, CertificatesManager certificatesManager)
+            IdleFederationMembersKicker idleFederationMembersKicker, IChainState chainState, IBlockStoreQueue blockStoreQueue, CertificatesManager certificatesManager,
+            RevocationChecker revocationChecker)
         {
             this.federationManager = federationManager;
             this.connectionManager = connectionManager;
@@ -81,12 +84,13 @@ namespace Stratis.Bitcoin.Features.PoA
             this.chainState = chainState;
             this.blockStoreQueue = blockStoreQueue;
             this.certificatesManager = certificatesManager;
+            this.revocationChecker = revocationChecker;
 
             payloadProvider.DiscoverPayloads(this.GetType().Assembly);
         }
 
         /// <inheritdoc />
-        public override Task InitializeAsync()
+        public override async Task InitializeAsync()
         {
             NetworkPeerConnectionParameters connectionParameters = this.connectionManager.Parameters;
 
@@ -109,12 +113,11 @@ namespace Stratis.Bitcoin.Features.PoA
 
             if (options.EnablePermissionedMembership)
             {
-                this.certificatesManager.Initialize();
+                await this.revocationChecker.InitializeAsync().ConfigureAwait(false);
+                await this.certificatesManager.InitializeAsync().ConfigureAwait(false);
             }
 
             this.miner.InitializeMining();
-
-            return Task.CompletedTask;
         }
 
         /// <summary>Replaces default <see cref="ConsensusManagerBehavior"/> with <see cref="PoAConsensusManagerBehavior"/>.</summary>
@@ -153,6 +156,11 @@ namespace Stratis.Bitcoin.Features.PoA
             this.votingManager.Dispose();
 
             this.idleFederationMembersKicker.Dispose();
+
+            if (((PoAConsensusOptions)this.network.Consensus.Options).EnablePermissionedMembership)
+            {
+                this.revocationChecker.Dispose();
+            }
         }
     }
 
@@ -204,6 +212,7 @@ namespace Stratis.Bitcoin.Features.PoA
 
                         // Permissioned membership.
                         services.AddSingleton<CertificatesManager>();
+                        services.AddSingleton<RevocationChecker>();
 
                         var options = (PoAConsensusOptions)network.Consensus.Options;
 

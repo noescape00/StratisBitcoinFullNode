@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Stratis.Bitcoin.Configuration;
 
@@ -27,21 +28,24 @@ namespace Stratis.Bitcoin.Features.PoA.ProtocolEncryption
 
         private readonly DataFolder dataFolder;
 
+        private readonly RevocationChecker revocationChecker;
+
         private readonly ILogger logger;
 
         private readonly TextFileConfiguration configuration;
 
-        public CertificatesManager(DataFolder dataFolder, NodeSettings nodeSettings, ILoggerFactory loggerFactory)
+        public CertificatesManager(DataFolder dataFolder, NodeSettings nodeSettings, ILoggerFactory loggerFactory, RevocationChecker revocationChecker)
         {
             this.dataFolder = dataFolder;
             this.configuration = nodeSettings.ConfigReader;
+            this.revocationChecker = revocationChecker;
 
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
         }
 
         /// <summary>Loads client and authority certificates and validates them.</summary>
         /// <exception cref="CertificateConfigurationException">Thrown in case required certificates are not found or are not valid.</exception>
-        public void Initialize()
+        public async Task InitializeAsync()
         {
             string acPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AuthorityCertificateName);
             string clientCertPath = Path.Combine(this.dataFolder.RootPath, ClientCertificateName);
@@ -80,7 +84,10 @@ namespace Stratis.Bitcoin.Features.PoA.ProtocolEncryption
             if (!clientCertValid)
                 throw new Exception("Provided client certificate isn't signed by the authority certificate!");
 
-            // TODO check for revocation here maybe?
+            bool revoked = await this.revocationChecker.IsCertificateRevokedAsync(this.ClientCertificate.Thumbprint).ConfigureAwait(false);
+
+            if (revoked)
+                throw new Exception("Provided client certificate was revoked!");
         }
 
         /// <summary>
