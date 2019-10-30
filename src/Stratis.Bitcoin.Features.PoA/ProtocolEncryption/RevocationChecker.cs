@@ -45,7 +45,7 @@ namespace Stratis.Bitcoin.Features.PoA.ProtocolEncryption
 
             this.client = new Client(certificateAuthorityUrl, new HttpClient());
 
-            this.revokedCertsCache = this.kvRepo.LoadValue<HashSet<string>>(kvRepoKey);
+            this.revokedCertsCache = this.kvRepo.LoadValueJson<HashSet<string>>(kvRepoKey);
 
             if (this.revokedCertsCache == null)
                 await this.UpdateRevokedCertsCacheAsync().ConfigureAwait(false);
@@ -109,7 +109,7 @@ namespace Stratis.Bitcoin.Features.PoA.ProtocolEncryption
         public void Dispose()
         {
             if (this.revokedCertsCache != null)
-                this.kvRepo.SaveValue(kvRepoKey, this.revokedCertsCache);
+                this.kvRepo.SaveValueJson(kvRepoKey, this.revokedCertsCache);
 
             this.cancellation.Cancel();
             this.cacheUpdatingTask?.GetAwaiter().GetResult();
