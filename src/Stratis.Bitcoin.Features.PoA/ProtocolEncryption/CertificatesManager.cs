@@ -160,7 +160,9 @@ namespace Stratis.Bitcoin.Features.PoA.ProtocolEncryption
             if (!valid)
                 throw new Exception("Trust chain did not complete to the known authority anchor. Thumbprints did not match.");
 
-            return true;
+            bool revoked = this.revocationChecker.IsCertificateRevokedAsync(this.ClientCertificate.Thumbprint).ConfigureAwait(false).GetAwaiter().GetResult();
+
+            return !revoked;
         }
     }
 
